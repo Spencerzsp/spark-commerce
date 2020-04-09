@@ -88,7 +88,7 @@ case class MySqlProxy(jdbcUrl: String, jdbcUser: String, jdbcPassword: String, c
       rs = pstmt.executeQuery()
 
       // 第四步：处理查询后的结果
-//      queryCallback.process(rs)
+      queryCallback.process(rs)
     } catch {
       case e: Exception => e.printStackTrace
     }
