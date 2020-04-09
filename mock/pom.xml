@@ -67,6 +67,7 @@
             <artifactId>kafka-clients</artifactId>
             <version>0.10.2.1</version>
         </dependency>
+
     </dependencies>
 
     <build>

@@ -9,7 +9,9 @@ import com.bigdata.commons.utils._
 import net.sf.json.JSONObject
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.types.{LongType, StructField}
+import org.apache.spark.sql.{Row, SaveMode, SparkSession}
+import org.apache.spark.storage.StorageLevel
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -58,29 +60,29 @@ object SessionStat {
     //sessionId2ActionGroupRDD: RDD[session_id, Iterable[UserVisitAction]]
     val sessionId2ActionGroupRDD = sessionId2ActionRDD.groupByKey()
 
-    sessionId2ActionGroupRDD.cache()
+//    sessionId2ActionGroupRDD.cache()
 
 //    sessionId2ActionGroupRDD.foreach(println)
 
     //sessionId2FullAggrInfoRDD: RDD[session_id, fullAggrInfo]
-    val sessionId2FullAggrInfoRDD = getSessionFullAggrInfo(spark, sessionId2ActionGroupRDD)
+//    val sessionId2FullAggrInfoRDD = getSessionFullAggrInfo(spark, sessionId2ActionGroupRDD)
 
 //    sessionId2FullAggrInfoRDD.foreach(println)
 
     // 创建自定义累加器对象
-    val sessionStatisticAccumulator = new SessionStatisticAccumulator
+//    val sessionStatisticAccumulator = new SessionStatisticAccumulator
 
     // 在 sparkSession 中注册自定义累加器，这样后面就可以用了
-    sc.register(sessionStatisticAccumulator)
+//    sc.register(sessionStatisticAccumulator)
 
     //sessionId2FilterRDD: RDD[session_id, fullInfo]
-    val sessionId2FilterRDD = getSessionFilterRDD(taskParam, sessionId2FullAggrInfoRDD, sessionStatisticAccumulator)
+//    val sessionId2FilterRDD = getSessionFilterRDD(taskParam, sessionId2FullAggrInfoRDD, sessionStatisticAccumulator)
 
-    sessionId2FilterRDD.foreach(println)
+//    sessionId2FilterRDD.foreach(println)
 
-    getSessionRatio(spark, taskUUID, sessionStatisticAccumulator.value)
+//    getSessionRatio(spark, taskUUID, sessionStatisticAccumulator.value)
 
-    println("计算session占比完成~~~")
+//    println("计算session占比完成~~~")
 
     // ******************** 需求二：Session 随机抽取 ********************
 //    sessionRandomExtract(spark, taskUUID, sessionId2FilterRDD)
@@ -94,12 +96,207 @@ object SessionStat {
 
     // join 默认是内连接，即不符合条件的不显示（即被过滤掉）
     
-    val sessionId2ActionFilterRDD  = sessionId2ActionRDD.join(sessionId2FilterRDD).map{
-      case (sessionId, (userVisitAction, filterInfo)) =>
-        (sessionId, userVisitAction)
+//    val sessionId2ActionFilterRDD  = sessionId2ActionRDD.join(sessionId2FilterRDD).map{
+//      case (sessionId, (userVisitAction, filterInfo)) =>
+//        (sessionId, userVisitAction)
+//    }
+
+//    top10PopularCategories(spark, taskUUID, sessionId2ActionFilterRDD)
+
+
+    // ******************** 需求五：页面单跳转化率统计 ********************
+    
+    val actionRDD = getActionRDD(spark, taskParam)
+//    val sessionId2ActionRDD = actionRDD.map(item => (item.session_id, item))
+
+    sessionId2ActionRDD.persist(StorageLevel.MEMORY_ONLY)
+
+//    val targetPageFlowStr = ConfigurationManager.config.getString(MyConstant.PARAM_TARGET_PAGE_FLOW)
+    val targetPageFlowStr = ParamUtils.getParam(taskParam, MyConstant.PARAM_TARGET_PAGE_FLOW)
+    val targetPageFlowArray = targetPageFlowStr.split(",")
+
+    //获取限制条件的页面切片
+    val targetPageSplit = targetPageFlowArray.slice(0, targetPageFlowArray.length - 1).zip(targetPageFlowArray.tail).map {
+      case (page1, page2) =>
+        (page1 + "_" + page2)
+    }
+//    targetPageSplit.foreach(println)
+
+    val sessionId2GroupActionRDD = sessionId2ActionRDD.groupByKey()
+
+    val realPageSplitNumRDD = sessionId2GroupActionRDD.flatMap {
+      case (sessionId, iterableActionRDD) =>
+
+        //将UserVisitActionRDD按照时间顺寻进行排序
+        val sortList = iterableActionRDD.toList.sortWith((item1, item2) => {
+          DateUtils.parseTime(item1.action_time).getTime <
+            DateUtils.parseTime(item2.action_time).getTime
+        })
+
+        val pageList = sortList.map {
+          case userVisitAction =>
+            userVisitAction.page_id
+        }
+
+        val realPageList = pageList.slice(0, pageList.length - 1).zip(pageList.tail).map {
+          case (page1, page2) =>
+            (page1 + "_" + page2)
+        }
+
+        // 过滤：留下存在于 targetPageSplit 中的页面切片
+        val realPageListFilter = realPageList.filter {
+          case realPageList =>
+            targetPageSplit.contains(realPageList)
+        }
+
+        realPageListFilter.map {
+          case realPageListFilter =>
+            (realPageListFilter, 1)
+        }
     }
 
-    top10PopularCategories(spark, taskUUID, sessionId2ActionFilterRDD)
+    //realPageSplitCountMap: Map[(page1_page2, count)]
+    val realPageSplitCountMap = realPageSplitNumRDD.countByKey()
+
+    realPageSplitCountMap.foreach(println)
+
+    val startPage = targetPageFlowArray(0).toLong
+
+    val startPageCount = sessionId2ActionRDD.filter {
+      case (sessionId, userVisitAction) =>
+        userVisitAction.page_id == startPage
+    }.count()
+
+    println(startPage)
+
+//    getPageConvertRate(spark, taskUUID, targetPageSplit, startPageCount, realPageSplitCountMap)
+
+    // ******************** 需求六：各区域 Top3 商品统计 ********************
+
+    // cityId2ProductIdRDD: RDD[(cityId, productId)]
+    val cityId2ProductIdRDD  = getCityAndProductInfo(spark, taskParam)
+//    cityId2ProductIdRDD.foreach(println)
+
+    // cityId2AreaInfoRDD: RDD[(cityId, cityName, area)]
+    val cityId2AreaInfoRDD  = getCityAreaInfo(spark)
+    cityId2AreaInfoRDD.foreach(println)
+
+    val AreaProductIdBasicInfoDF = getAreaProductIdBasicInfoTable(spark, cityId2ProductIdRDD, cityId2AreaInfoRDD)
+    AreaProductIdBasicInfoDF.show(truncate = false)
+
+  }
+
+  def getAreaProductIdBasicInfoTable(spark: SparkSession,
+                                     cityId2ProductIdRDD: RDD[(Long, Long)],
+                                     cityId2AreaInfoRDD: RDD[(Long, CityAreaInfo)]) = {
+
+    val areaProductIdBasicInfoRDD  = cityId2ProductIdRDD.join(cityId2AreaInfoRDD).map{
+      case (cityId, (clickProductId, cityAreaInfo)) =>
+        (cityId, cityAreaInfo.cityName, cityAreaInfo.area, clickProductId)
+    }
+
+    import spark.implicits._
+    areaProductIdBasicInfoRDD.toDF("city_id", "city_name", "area", "click_product_id")
+  }
+
+  /**
+    * 获取城市信息
+    * @param spark
+    */
+  def getCityAreaInfo(spark: SparkSession) = {
+    val cityAreaInfoArray = Array((0L, "北京", "华北"), (1L, "上海", "华东"), (2L, "南京", "华东"),
+      (3L, "广州", "华南"), (4L, "三亚", "华南"), (5L, "武汉", "华中"),
+      (6L, "长沙", "华中"), (7L, "西安", "西北"), (8L, "成都", "西南"),
+      (9L, "哈尔滨", "东北"))
+
+    spark.sparkContext.makeRDD(cityAreaInfoArray).map{
+      case (cityId, cityName, area) =>
+        (cityId, CityAreaInfo(cityId, cityName, area))
+    }
+  }
+
+  /**
+    * 获取测试id和商品id
+    * @param spark
+    * @param taskParam
+    * @return
+    */
+  def getCityAndProductInfo(spark: SparkSession, taskParam: JSONObject) = {
+
+    val startDate = ParamUtils.getParam(taskParam, MyConstant.PARAM_START_DATE)
+    val endDate = ParamUtils.getParam(taskParam, MyConstant.PARAM_END_DATE)
+
+    val sql = "select city_id, click_product_id from user_visit_action where date >= '" + startDate +
+      "' and date <= '" + endDate + "' and click_product_id != -1"
+
+    import spark.implicits._
+    spark.sql(sql).as[CityClickProduct].rdd.map{
+      case cityIdAndProductId =>
+        (cityIdAndProductId.city_id, cityIdAndProductId.click_product_id)
+    }
+
+  }
+
+
+  /**
+    * 统计页面转换率
+    * @param spark
+    * @param taskUUID
+    * @param targetPageSplit
+    * @param startPageCount
+    * @param realPageSplitCountMap
+    */
+  def getPageConvertRate(spark: SparkSession,
+                         taskUUID: String,
+                         targetPageSplit: Array[String],
+                         startPageCount: Long,
+                         realPageSplitCountMap: collection.Map[String, Long]) = {
+    val pageSplitRatioMap = new mutable.HashMap[String, Double]()
+
+    var lastPageCount = startPageCount.toDouble
+
+    for (pageSplit <- targetPageSplit) {
+      val currentPageSplitCount = realPageSplitCountMap.get(pageSplit).get.toDouble
+      val rate = currentPageSplitCount / lastPageCount
+      pageSplitRatioMap.put(pageSplit, rate)
+      lastPageCount = currentPageSplitCount
+    }
+
+    val convertRateStr = pageSplitRatioMap.map {
+      case (pageSplit, rate) =>
+        pageSplit + "=" + rate
+    }.mkString("|")
+
+    println(convertRateStr)
+
+    val pageSplitConvertRate  = PageSplitConvertRate(taskUUID, convertRateStr)
+
+    val pageSplitConvertRateRDD  = spark.sparkContext.makeRDD(Array(pageSplitConvertRate))
+
+    import spark.implicits._
+//
+//    val pageSplitConverRateDF = pageSplitConvertRateRDD.toDF()
+//    val schema1 = pageSplitConverRateDF.schema.add(StructField("id", LongType))
+//    val tempRDD1 = pageSplitConverRateDF.rdd.zipWithIndex()
+//    val rowRDD1 = tempRDD1.map(x => {
+//      Row.merge(x._1, Row(x._2))
+//    })
+//
+//    val pageSplitDF = spark.createDataFrame(rowRDD1, schema1)
+    val pageSplitDF = pageSplitConvertRateRDD.toDF()
+
+    pageSplitDF.write
+      .format("jdbc")
+      .option("url", ConfigurationManager.config.getString(MyConstant.JDBC_URL))
+      .option("driver", ConfigurationManager.config.getString(MyConstant.JDBC_DRIVER))
+      .option("user", ConfigurationManager.config.getString(MyConstant.JDBC_USER))
+      .option("password", ConfigurationManager.config.getString(MyConstant.JDBC_PASSWORD))
+      .option("dbtable", "page_convert_rate2")
+      .mode(SaveMode.Overwrite)
+      .option("truncate", "false") //是否删除表进行重建
+      .option("batchsize",10000)
+      .option("isolationLevel","NONE")
+      .save()
   }
 
   def top10PopularCategories(spark: SparkSession, taskUUID: String, sessionId2ActionFilterRDD: RDD[(String, UserVisitAction)]) ={

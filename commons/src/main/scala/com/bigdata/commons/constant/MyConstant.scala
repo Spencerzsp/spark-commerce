@@ -22,6 +22,8 @@ object MyConstant {
   val SPARK_APP_NAME_SESSION = "UserVisitSessionAnalyzeSpark"
   val SPARK_APP_NAME_PAGE = "PageOneStepConvertRateSpark"
 
+  val SPARK_LOCAL = "spark.local"
+
   /**
     * user_visit_action、user_info、product_info 表中字段对应的字段名常量
     */

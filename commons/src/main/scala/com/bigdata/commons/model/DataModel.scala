@@ -175,3 +175,41 @@ case class Top10Session(taskid: String,
                         categoryid: Long,
                         sessionid: String,
                         clickCount: Long)
+
+
+/**
+  *
+  * @param taskid
+  * @param convertRate
+  */
+case class PageSplitConvertRate(taskid: String,
+                                convertRate: String
+                               )
+
+
+case class CityClickProduct(city_id: Long,
+                            click_product_id: Long)
+
+
+case class CityAreaInfo(cityId: Long,
+                        cityName: String,
+                        area: String)
+
+/**
+  * 广告黑名单
+  *
+  * @author
+  *
+  */
+case class AdBlacklist(userid: Long)
+
+/**
+  * 用户广告点击量
+  *
+  * @author
+  *
+  */
+case class AdUserClickCount(date: String,
+                            userid: Long,
+                            adid: Long,
+                            clickCount: Long)

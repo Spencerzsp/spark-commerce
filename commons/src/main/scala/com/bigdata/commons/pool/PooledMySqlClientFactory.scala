@@ -4,6 +4,7 @@ import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet}
 
 import com.bigdata.commons.conf.ConfigurationManager
 import com.bigdata.commons.constant.MyConstant
+import com.bigdata.commons.model.AdBlacklist
 import org.apache.commons.pool2.impl.{DefaultPooledObject, GenericObjectPool, GenericObjectPoolConfig}
 import org.apache.commons.pool2.{BasePooledObjectFactory, PooledObject}
 // 创建用于处理 MySQL 查询结果的类的抽象接口
@@ -87,7 +88,7 @@ case class MySqlProxy(jdbcUrl: String, jdbcUser: String, jdbcPassword: String, c
       rs = pstmt.executeQuery()
 
       // 第四步：处理查询后的结果
-      queryCallback.process(rs)
+//      queryCallback.process(rs)
     } catch {
       case e: Exception => e.printStackTrace
     }
@@ -169,7 +170,7 @@ object CreateMySqlPool {
 
   // 在 org.apache.commons.pool2.impl 中预设了三个可以直接使用的对象池：GenericObjectPool、GenericKeyedObjectPool 和 SoftReferenceObjectPool
   // 创建 genericObjectPool 为 GenericObjectPool
-  // GenericObjectPool 的特点是可以设置对象池中的对象特征，包括 LIFO 方式、最大空闲数、最小空闲数、是否有效性检查等等
+  // GenericObjectPool 的特点是可以设置对象池中的对象特征，包括 FIFO 方式、最大空闲数、最小空闲数、是否有效性检查等等
   private var genericObjectPool: GenericObjectPool[MySqlProxy] = null
 
   // 伴生对象通过 apply 完成对象的创建

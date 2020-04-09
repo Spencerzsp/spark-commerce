@@ -9,13 +9,17 @@
         <module name="analyze" />
         <module name="commons" />
         <module name="mock" />
+        <module name="product" />
+        <module name="test" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="analyze" target="1.8" />
       <module name="commons" target="1.8" />
       <module name="mock" target="1.8" />
+      <module name="product" target="1.8" />
       <module name="spark-commerce" target="1.8" />
+      <module name="test" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>
