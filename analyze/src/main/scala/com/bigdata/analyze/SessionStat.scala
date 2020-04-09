@@ -60,17 +60,17 @@ object SessionStat {
     //sessionId2ActionGroupRDD: RDD[session_id, Iterable[UserVisitAction]]
     val sessionId2ActionGroupRDD = sessionId2ActionRDD.groupByKey()
 
-//    sessionId2ActionGroupRDD.cache()
+    sessionId2ActionGroupRDD.cache()
 
 //    sessionId2ActionGroupRDD.foreach(println)
 
     //sessionId2FullAggrInfoRDD: RDD[session_id, fullAggrInfo]
-//    val sessionId2FullAggrInfoRDD = getSessionFullAggrInfo(spark, sessionId2ActionGroupRDD)
+    val sessionId2FullAggrInfoRDD = getSessionFullAggrInfo(spark, sessionId2ActionGroupRDD)
 
 //    sessionId2FullAggrInfoRDD.foreach(println)
 
     // 创建自定义累加器对象
-//    val sessionStatisticAccumulator = new SessionStatisticAccumulator
+    val sessionStatisticAccumulator = new SessionStatisticAccumulator
 
     // 在 sparkSession 中注册自定义累加器，这样后面就可以用了
 //    sc.register(sessionStatisticAccumulator)
