@@ -73,10 +73,10 @@ object SessionStat {
     val sessionStatisticAccumulator = new SessionStatisticAccumulator
 
     // 在 sparkSession 中注册自定义累加器，这样后面就可以用了
-//    sc.register(sessionStatisticAccumulator)
+    sc.register(sessionStatisticAccumulator)
 
     //sessionId2FilterRDD: RDD[session_id, fullInfo]
-//    val sessionId2FilterRDD = getSessionFilterRDD(taskParam, sessionId2FullAggrInfoRDD, sessionStatisticAccumulator)
+    val sessionId2FilterRDD = getSessionFilterRDD(taskParam, sessionId2FullAggrInfoRDD, sessionStatisticAccumulator)
 
 //    sessionId2FilterRDD.foreach(println)
 
@@ -85,7 +85,7 @@ object SessionStat {
 //    println("计算session占比完成~~~")
 
     // ******************** 需求二：Session 随机抽取 ********************
-//    sessionRandomExtract(spark, taskUUID, sessionId2FilterRDD)
+    sessionRandomExtract(spark, taskUUID, sessionId2FilterRDD)
 
 //    println("计算session随机抽取完成")
 
@@ -96,12 +96,12 @@ object SessionStat {
 
     // join 默认是内连接，即不符合条件的不显示（即被过滤掉）
     
-//    val sessionId2ActionFilterRDD  = sessionId2ActionRDD.join(sessionId2FilterRDD).map{
-//      case (sessionId, (userVisitAction, filterInfo)) =>
-//        (sessionId, userVisitAction)
-//    }
+    val sessionId2ActionFilterRDD  = sessionId2ActionRDD.join(sessionId2FilterRDD).map{
+      case (sessionId, (userVisitAction, filterInfo)) =>
+        (sessionId, userVisitAction)
+    }
 
-//    top10PopularCategories(spark, taskUUID, sessionId2ActionFilterRDD)
+    top10PopularCategories(spark, taskUUID, sessionId2ActionFilterRDD)
 
 
     // ******************** 需求五：页面单跳转化率统计 ********************
@@ -343,7 +343,7 @@ object SessionStat {
         val orderCount = StringUtils.getFieldFromConcatString(fullCountInfo, "\\|", MyConstant.FIELD_ORDER_COUNT).toLong
         val payCount = StringUtils.getFieldFromConcatString(fullCountInfo, "\\|", MyConstant.FIELD_PAY_COUNT).toLong
 
-        val sortKey = SorkKey(clickCount, orderCount, payCount)
+        val sortKey = SortKey(clickCount, orderCount, payCount)
         (sortKey, fullCountInfo)
     }
 
@@ -744,7 +744,7 @@ object SessionStat {
     val keywords = ParamUtils.getParam(taskParam, MyConstant.PARAM_KEYWORDS)
     val categoryIds = ParamUtils.getParam(taskParam, MyConstant.PARAM_CATEGORY_IDS)
 
-    // 拼装过滤条件的字符串：
+    // 拼接过滤条件的字符串：
     var filterInfo = (if (startAge != null) MyConstant.PARAM_START_AGE + "=" + startAge + "|" else "") +
       (if (endAge != null) MyConstant.PARAM_END_AGE + "=" + endAge + "|" else "") +
       (if (professionals != null) MyConstant.PARAM_PROFESSIONALS + "=" + professionals + "|" else "") +

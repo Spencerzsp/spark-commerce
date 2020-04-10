@@ -2,12 +2,14 @@ package com.bigdata.analyze.test
 
 import java.util
 
+import com.bigdata.analyze.SortKey
 import com.bigdata.commons.bean
 import com.bigdata.commons.conf.ConfigurationManager
 import com.bigdata.commons.constant.MyConstant
 import com.bigdata.commons.dao.AdBlackListDAO
 import com.bigdata.commons.dao.impl.AdBlacklistDAOImpl
 import com.bigdata.commons.model.AdBlacklist
+import com.bigdata.commons.utils.ParamUtils
 import net.sf.json.JSONObject
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
@@ -73,11 +75,11 @@ object TestAPP {
 
   def main(args: Array[String]): Unit = {
 
-    val conf = new SparkConf().setAppName("TestAPP").setMaster("local[*]")
-    val spark = SparkSession.builder()
-      .config(conf)
-      .enableHiveSupport()
-      .getOrCreate()
+//    val conf = new SparkConf().setAppName("TestAPP").setMaster("local[*]")
+//    val spark = SparkSession.builder()
+//      .config(conf)
+//      .enableHiveSupport()
+//      .getOrCreate()
 //
 //    val sc = spark.sparkContext
 
@@ -146,16 +148,50 @@ object TestAPP {
 
 //    foldLeftTest()
 
-    val map1 = Map("a" -> 1, "b" -> 2)
+//    val map1 = Map("a" -> 1, "b" -> 2)
+//
+//    val map2 = Map("b" -> 4, "c" -> 8)
+//
+//    val mergeMap = (map1 /: map2){
+//      case (newMap, (k ,v)) =>
+//        newMap + (k -> (newMap.getOrElse(k, 0) + v))
+//    }
 
-    val map2 = Map("b" -> 4, "c" -> 8)
+//    println(mergeMap)
 
-    val mergeMap = (map1 /: map2){
-      case (newMap, (k ,v)) =>
-        newMap + (k -> (newMap.getOrElse(k, 0) + v))
+
+    /**
+      * 二次排序测试
+      */
+
+//    val list = List((2,1,3),(1,7,4),(3,5,7),(1,2,3))
+//    list.map {
+//      case item =>
+//        val key = SortKey(item._1, item._2, item._3)
+//        println(key)
+//    }
+
+    val jsonStr = ConfigurationManager.config.getString(MyConstant.TASK_PARAMS)
+    val taskParam = JSONObject.fromObject(jsonStr)
+    val targetPageFlowStr = ParamUtils.getParam(taskParam, MyConstant.PARAM_TARGET_PAGE_FLOW)
+    val targetPageFlowArray = targetPageFlowStr.split(",")
+
+    //获取限制条件的页面切片
+    val targetPageSplit = targetPageFlowArray.slice(0, targetPageFlowArray.length - 1).zip(targetPageFlowArray.tail).map {
+      case (page1, page2) =>
+        (page1 + "_" + page2)
     }
 
-    println(mergeMap)
+//    targetPageSplit.foreach(println)
+
+    val array = Array(1,2,3,4,5)
+    val ints = array.slice(0, array.length - 1)
+//    ints.foreach(println)
+    val tail = array.tail
+//    tail.foreach(println)
+
+    val list = List(1,2,3,4,5)
+    list.tail.foreach(println)
   }
 
 

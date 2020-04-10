@@ -6,12 +6,12 @@ package com.bigdata.analyze
   * @param orderCount
   * @param payCount
   */
-case class SorkKey(clickCount: Long, orderCount: Long, payCount: Long) extends Ordered[SorkKey]{
+case class SortKey(clickCount: Long, orderCount: Long, payCount: Long) extends Ordered[SortKey]{
 
   //this.compare(that)
-  override def compare(that: SorkKey) = {
+  override def compare(that: SortKey) = {
 
-    if(this.clickCount -that.clickCount != 0){
+    if(this.clickCount - that.clickCount != 0){
        (this.clickCount - that.clickCount).toInt
     }else if (this.orderCount - that.orderCount != 0) {
        (this.orderCount - that.orderCount).toInt

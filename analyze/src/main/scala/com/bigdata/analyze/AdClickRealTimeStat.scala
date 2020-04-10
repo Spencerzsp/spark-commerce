@@ -163,8 +163,40 @@ object AdClickRealTimeStat {
 
 //    adRealTimeFilterDStream.foreachRDD(rdd => rdd.foreach(println))
 
+    val key2NumDStream  = adRealTimeFilterDStream.map {
+      case consumerRedordRdd =>
+        val consumerSplits = consumerRedordRdd.split(" ")
+        val timestamp = consumerSplits(0).toLong
+        val dateKey = DateUtils.formatDateKey(new Date(timestamp))
+        val province = consumerSplits(1)
+        val city = consumerSplits(2)
+        val adid = consumerSplits(4)
 
-    generateBlackListStat(adRealTimeFilterDStream)
+        val key = dateKey + "_" + province + "_" + city + "_" + adid
+
+        (key, 1L)
+    }
+
+    // 实时统计updateStateByKey
+    val key2StateDStream  = key2NumDStream.updateStateByKey {
+      (values: Seq[Long], state: Option[Long]) =>
+        var newValue = 0L
+        if (state.isDefined) {
+          newValue = state.get
+        }
+        for (value <- values) {
+          newValue += value
+        }
+        Some(newValue)
+    }
+
+    key2StateDStream.foreachRDD{
+      rdd => rdd.foreachPartition{
+        item => item.foreach(println)
+      }
+    }
+
+//    generateBlackListStat(adRealTimeFilterDStream)
 
     ssc.start()
     ssc.awaitTermination()
