@@ -163,8 +163,9 @@ object NumberUtils {
     * @return 格式化小数
     */
   def formatDouble(num: Double, scale: Int): Double = {
-    val bd = BigDecimal(num)
-    bd.setScale(scale, BigDecimal.RoundingMode.HALF_UP).doubleValue()
+    val decimal = BigDecimal.apply(num).bigDecimal
+    decimal.setScale(scale, BigDecimal.RoundingMode.HALF_UP).doubleValue()
+
   }
 }
 
@@ -299,12 +300,13 @@ object ValidUtils {
     *
     * @param data            数据
     * @param dataField       数据字段
-    * @param parameter       参数
+    * @param parameter       参数(即过滤条件字符串)
     * @param startParamField 起始参数字段
     * @param endParamField   结束参数字段
     * @return 校验结果
     */
   def between(data: String, dataField: String, parameter: String, startParamField: String, endParamField: String): Boolean = {
+    //获取过滤条件中对应的参数
     val startParamFieldStr = StringUtils.getFieldFromConcatString(parameter, "\\|", startParamField)
     val endParamFieldStr = StringUtils.getFieldFromConcatString(parameter, "\\|", endParamField)
     if (startParamFieldStr == null || endParamFieldStr == null) {

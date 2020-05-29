@@ -161,6 +161,7 @@ class PooledMySqlClientFactory(jdbcUrl: String, jdbcUser: String, jdbcPassword: 
   }
 }
 
+
 /**
   * 创建 MySQL 池工具类
   */
@@ -185,6 +186,7 @@ object CreateMySqlPool {
         val size = ConfigurationManager.config.getInt(MyConstant.JDBC_DATASOURCE_SIZE)
 
         val pooledFactory = new PooledMySqlClientFactory(jdbcUrl, jdbcUser, jdbcPassword)
+
         val poolConfig = {
           // 创建标准对象池配置类的实例
           val c = new GenericObjectPoolConfig

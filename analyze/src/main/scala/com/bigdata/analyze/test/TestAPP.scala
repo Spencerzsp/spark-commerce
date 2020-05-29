@@ -9,7 +9,7 @@ import com.bigdata.commons.constant.MyConstant
 import com.bigdata.commons.dao.AdBlackListDAO
 import com.bigdata.commons.dao.impl.AdBlacklistDAOImpl
 import com.bigdata.commons.model.AdBlacklist
-import com.bigdata.commons.utils.ParamUtils
+import com.bigdata.commons.utils.{NumberUtils, ParamUtils}
 import net.sf.json.JSONObject
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
@@ -75,13 +75,49 @@ object TestAPP {
 
   def main(args: Array[String]): Unit = {
 
-//    val conf = new SparkConf().setAppName("TestAPP").setMaster("local[*]")
-//    val spark = SparkSession.builder()
-//      .config(conf)
-//      .enableHiveSupport()
-//      .getOrCreate()
+//    val ratio = NumberUtils.formatDouble(4/5.toFloat, 2)
+//    println(ratio)
+
+    val conf = new SparkConf().setAppName("TestAPP").setMaster("local[*]")
+    val spark = SparkSession.builder()
+      .config(conf)
+      .enableHiveSupport()
+      .getOrCreate()
+
+    val sc = spark.sparkContext
+
+    val map1 = Map(1 -> "zhangsan")
+    val map2 = Map(2 -> "lisi")
+
+    val map = new mutable.HashMap[Int, String]()
+    map += (3 -> "wangwu")
+    println(map)
+
+    val map3 = map1 ++ map2
+
+    println(map3)
+
+//    val dataRDD = sc.makeRDD(Array("2020-05-27_11" -> 1, "2020-05-27_11" -> 2, "2020-05-27_11" -> 100, "2020-05-27_10" -> 1))
+//    val hourCountMap = dataRDD.countByKey()
 //
-//    val sc = spark.sparkContext
+//    val dateHourCountMap = new mutable.HashMap[String, mutable.Map[String, Long]]()
+//
+//    for ((dateHour, count) <- hourCountMap){
+//      val date = dateHour.split("_")(0)
+//      val hour = dateHour.split("_")(1)
+//
+//      dateHourCountMap.get(date) match {
+//        case None =>
+//          dateHourCountMap(date) = new mutable.HashMap[String, Long]()
+//          dateHourCountMap(date) += (hour -> count)
+//        case Some(map) =>
+//          dateHourCountMap(date) += (hour -> count)
+//      }
+//    }
+//
+//    dateHourCountMap.foreach(println)
+//
+//    println(dateHourCountMap.size)
 
 //    val adBlacklistDAOImpl = new AdBlacklistDAOImpl()
 //
@@ -171,27 +207,27 @@ object TestAPP {
 //        println(key)
 //    }
 
-    val jsonStr = ConfigurationManager.config.getString(MyConstant.TASK_PARAMS)
-    val taskParam = JSONObject.fromObject(jsonStr)
-    val targetPageFlowStr = ParamUtils.getParam(taskParam, MyConstant.PARAM_TARGET_PAGE_FLOW)
-    val targetPageFlowArray = targetPageFlowStr.split(",")
-
-    //获取限制条件的页面切片
-    val targetPageSplit = targetPageFlowArray.slice(0, targetPageFlowArray.length - 1).zip(targetPageFlowArray.tail).map {
-      case (page1, page2) =>
-        (page1 + "_" + page2)
-    }
-
-//    targetPageSplit.foreach(println)
-
-    val array = Array(1,2,3,4,5)
-    val ints = array.slice(0, array.length - 1)
-//    ints.foreach(println)
-    val tail = array.tail
-//    tail.foreach(println)
-
-    val list = List(1,2,3,4,5)
-    list.tail.foreach(println)
+//    val jsonStr = ConfigurationManager.config.getString(MyConstant.TASK_PARAMS)
+//    val taskParam = JSONObject.fromObject(jsonStr)
+//    val targetPageFlowStr = ParamUtils.getParam(taskParam, MyConstant.PARAM_TARGET_PAGE_FLOW)
+//    val targetPageFlowArray = targetPageFlowStr.split(",")
+//
+//    //获取限制条件的页面切片
+//    val targetPageSplit = targetPageFlowArray.slice(0, targetPageFlowArray.length - 1).zip(targetPageFlowArray.tail).map {
+//      case (page1, page2) =>
+//        (page1 + "_" + page2)
+//    }
+//
+////    targetPageSplit.foreach(println)
+//
+//    val array = Array(1,2,3,4,5)
+//    val ints = array.slice(0, array.length - 1)
+////    ints.foreach(println)
+//    val tail = array.tail
+////    tail.foreach(println)
+//
+//    val list = List(1,2,3,4,5)
+//    list.tail.foreach(println)
   }
 
 

@@ -195,6 +195,17 @@ case class CityAreaInfo(cityId: Long,
                         cityName: String,
                         area: String)
 
+
+
+case class AreaTop3Product(taskid: String,
+                           area: String,
+                           areaLevel: String,
+                           productid: Long,
+                           cityInfos: String,
+                           clickCount: Long,
+                           productName: String,
+                           productStatus: String)
+
 /**
   * 广告黑名单
   *
