@@ -39,6 +39,7 @@ object SparkUDTFDemo2 {
     // userDF.rdd返回类型为RDD[Row]，可通过StructType重新赋予字段和类型
     val rdd: RDD[Row] = userDF.rdd
 
+    import spark.implicits._
     // userDF.as[User].rdd返回类型为RDD[User]
     val rdd1: RDD[User] = userDF.as[User].rdd
 
