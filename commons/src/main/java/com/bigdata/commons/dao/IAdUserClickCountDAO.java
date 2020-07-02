@@ -1,7 +1,7 @@
 package com.bigdata.commons.dao;
 
 
-import com.bigdata.commons.model.AdUserClickCount;
+import com.bigdata.commons.bean.AdUserClickCount;
 
 import java.util.List;
 

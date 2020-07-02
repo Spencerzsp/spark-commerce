@@ -1,7 +1,8 @@
 package com.bigdata.commons.dao;
 
 
-import com.bigdata.commons.model.AdBlacklist;
+
+import com.bigdata.commons.bean.AdBlacklist;
 
 import java.util.List;
 

@@ -33,8 +33,8 @@ object MockRealTimeData {
       val timestamp = System.currentTimeMillis()
       val province = random.nextInt(10)
       val city = province
-      val adid = random.nextInt(20)
-      val userid = random.nextInt(100)
+      val adid = random.nextInt(5)
+      val userid = random.nextInt(3)
 
       // 拼接实时数据
       array += timestamp + " " + province + " " + city + " " + userid + " " + adid
@@ -56,7 +56,7 @@ object MockRealTimeData {
         println("正在发送数据到kafka集群...")
       }
 
-      Thread.sleep(5000)
+      Thread.sleep(500)
     }
   }
 

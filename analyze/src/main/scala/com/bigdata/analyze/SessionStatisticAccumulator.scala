@@ -48,8 +48,11 @@ class SessionStatisticAccumulator extends AccumulatorV2[String, mutable.HashMap[
       // acc.countMap.foldLeft(this.countMap) 等价于 this.countMap /: acc.countMap  又等价于 this.countMap 和 acc.countMap 的每一个 KV 做操作
       // 合并两个map，对相同key的value进行累加,返回值为newMap
       case acc: SessionStatisticAccumulator => acc.countMap.foldLeft(this.countMap) {
+
+        //newMap:(k, v)是tuple类型
         case (newMap, (k, v)) =>
-          newMap += (k -> (newMap.getOrElse(k, 0) + v))
+         newMap += (k -> (newMap.getOrElse(k, 0) + v))
+
       }
     }
   }

@@ -34,8 +34,9 @@ object TestApp2 {
 
     spark.sql("select concat_long_str('hello', 100, '=') concat_str").show()
 
-//    spark.sql("select *, if (get_json_field(extend_info, 'product_status') = '0', '自营', '第三方') product_status from product_info").show(truncate = false)
+    spark.sql("select *, if (get_json_field(extend_info, 'product_status') = '0', '自营', '第三方') product_status from product_info").show(truncate = false)
 
+    spark.sql("select product_id, product_name, if(get_json_field(extend_info, 'product_status') = '0', '0', 1) product_status from product_info").show(truncate = false)
 //    val dataArray = Array((SortKey(2412,2284,2430), 1), (SortKey(2143,2320,2366), 2), (SortKey(2404,2199,2529), 3), (SortKey(2143,2320,2500), 4))
 //
 //    val dataRDD = sc.makeRDD(dataArray)

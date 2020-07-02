@@ -6,9 +6,7 @@ import com.bigdata.analyze.SortKey
 import com.bigdata.commons.bean
 import com.bigdata.commons.conf.ConfigurationManager
 import com.bigdata.commons.constant.MyConstant
-import com.bigdata.commons.dao.AdBlackListDAO
-import com.bigdata.commons.dao.impl.AdBlacklistDAOImpl
-import com.bigdata.commons.model.AdBlacklist
+import com.bigdata.commons.impl.AdBlacklistDAOImpl
 import com.bigdata.commons.utils.{NumberUtils, ParamUtils}
 import net.sf.json.JSONObject
 import org.apache.spark.SparkConf

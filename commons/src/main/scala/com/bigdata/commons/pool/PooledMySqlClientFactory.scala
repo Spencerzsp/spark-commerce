@@ -4,7 +4,7 @@ import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet}
 
 import com.bigdata.commons.conf.ConfigurationManager
 import com.bigdata.commons.constant.MyConstant
-import com.bigdata.commons.model.AdBlacklist
+//import com.bigdata.commons.model.AdBlacklist
 import org.apache.commons.pool2.impl.{DefaultPooledObject, GenericObjectPool, GenericObjectPoolConfig}
 import org.apache.commons.pool2.{BasePooledObjectFactory, PooledObject}
 // 创建用于处理 MySQL 查询结果的类的抽象接口
@@ -14,6 +14,7 @@ trait QueryCallback {
 
 /**
   * MySQL 客户端代理对象
+  * 工作类
   *
   * @param jdbcUrl      MySQL URL
   * @param jdbcUser     MySQL 用户
@@ -187,6 +188,7 @@ object CreateMySqlPool {
 
         val pooledFactory = new PooledMySqlClientFactory(jdbcUrl, jdbcUser, jdbcPassword)
 
+        //配置类对象
         val poolConfig = {
           // 创建标准对象池配置类的实例
           val c = new GenericObjectPoolConfig

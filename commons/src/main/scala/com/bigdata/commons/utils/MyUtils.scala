@@ -118,6 +118,9 @@ object DateUtils {
 
   def main(args: Array[String]): Unit = {
     print(DateUtils.parseTime("2017-10-31 20:27:53")) // Tue Oct 31 20:27:53 CST 2017
+
+    println("------------------------")
+    println(NumberUtils.formatDouble(2.726, 1))
   }
 
   /**
@@ -280,11 +283,11 @@ object StringUtils {
     val fieldsMap = new mutable.HashMap[String, String]()
 
     for (fields <- str.split(delimiter)) {
-      val arra = fields.split("=")
-      if (arra(0).compareTo(field) == 0)
+      val array = fields.split("=")
+      if (array(0).compareTo(field) == 0)
         fieldsMap += (field -> newFieldValue)
       else
-        fieldsMap += (arra(0) -> arra(1))
+        fieldsMap += (array(0) -> array(1))
     }
 
     fieldsMap.map(item => item._1 + "=" + item._2).mkString(delimiter)

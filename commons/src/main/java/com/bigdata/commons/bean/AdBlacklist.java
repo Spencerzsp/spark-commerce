@@ -13,6 +13,13 @@ import java.io.Serializable;
 public class AdBlacklist implements Serializable{
     private Long userid ;
 
+    public AdBlacklist() {
+    }
+
+    public AdBlacklist(Long userid) {
+        this.userid = userid;
+    }
+
     public Long getUserid() {
         return userid;
     }

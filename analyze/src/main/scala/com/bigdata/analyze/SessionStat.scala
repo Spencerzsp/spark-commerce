@@ -59,16 +59,16 @@ object SessionStat {
 //    sessionId2ActionRDD.foreach(println)
 
     //sessionId2ActionGroupRDD: RDD[session_id, Iterable[UserVisitAction]]
-//    val sessionId2ActionGroupRDD = sessionId2ActionRDD.groupByKey()
+    val sessionId2ActionGroupRDD = sessionId2ActionRDD.groupByKey()
 
-//    sessionId2ActionGroupRDD.cache()
+    sessionId2ActionGroupRDD.cache()
 
 //    sessionId2ActionGroupRDD.foreach(println)
 
     //sessionId2FullAggrInfoRDD: RDD[session_id, fullAggrInfo]
-//    val sessionId2FullAggrInfoRDD = getSessionFullAggrInfo(spark, sessionId2ActionGroupRDD)
+    val sessionId2FullAggrInfoRDD = getSessionFullAggrInfo(spark, sessionId2ActionGroupRDD)
 
-//    sessionId2FullAggrInfoRDD.foreach(println)
+    sessionId2FullAggrInfoRDD.foreach(println)
 
     // 创建自定义累加器对象
 //    val sessionStatisticAccumulator = new SessionStatisticAccumulator
@@ -117,7 +117,7 @@ object SessionStat {
 //    val targetPageSplit = pageSplitCount._1
 //    val startPageCount = pageSplitCount._2
 //    val realPageSplitCountMap = pageSplitCount._3
-
+//
 //    getPageConvertRate(spark, taskUUID, targetPageSplit, startPageCount, realPageSplitCountMap)
 
     // ******************** 需求六：各区域 Top3 商品统计 ********************
@@ -139,16 +139,16 @@ object SessionStat {
 
     getAreaProductClickCountTable(spark)
 
-    // 自定义 UDAF 函数：实现从 json 串中取出指定字段的值
+    // 自定义 UDF 函数：实现从 json 串中取出指定字段的值
     spark.udf.register("get_json_field", (jsonStr: String, field: String) => {
       val jSONObject = JSONObject.fromObject(jsonStr)
       jSONObject.getString(field)
     })
 
-    //将 temp_area_product_count 表 join 商品信息表 product_info
+    //将temp_area_product_count 表 join 商品信息表 product_info
     getAreaProductClickCountInfo(spark)
 
-    // 获取 各区域 Top3 商品（使用到了开窗函数）
+    // 获取各区域 Top3 商品（使用到了开窗函数）
     getAreaTop3Product(spark, taskUUID)
 
     // 测试
@@ -162,7 +162,7 @@ object SessionStat {
     val sql = "select area, " +
       "case " +
       "when area='华北' or area='华东' then 'A_Level' " +
-      "when area='华中' or area='华男' then 'B_Level' " +
+      "when area='华中' or area='华南' then 'B_Level' " +
       "when area='西南' or area='西北' then 'C_Level' " +
       "else 'D_Level' " +
       "end area_level, " +
@@ -178,6 +178,8 @@ object SessionStat {
     }
 
     import sparkSession.implicits._
+//    val areaTop3ProductRDD = sparkSession.sql(sql).as[AreaTop3Product].rdd
+
     areaTop3ProductRDD.toDF().write
       .format("jdbc")
       .option("url", ConfigurationManager.config.getString(MyConstant.JDBC_URL))
@@ -211,6 +213,9 @@ object SessionStat {
   def getAreaProductIdBasicInfoTable(spark: SparkSession,
                                      cityId2ProductIdRDD: RDD[(Long, Long)],
                                      cityId2AreaInfoRDD: RDD[(Long, CityAreaInfo)]) = {
+
+//    val value: RDD[(Long, (Long, Option[CityAreaInfo]))] = cityId2ProductIdRDD.leftOuterJoin(cityId2AreaInfoRDD)
+//    val value1: RDD[(Long, (CityAreaInfo, Long))] = cityId2AreaInfoRDD.join(cityId2ProductIdRDD)
 
     val areaProductIdBasicInfoRDD  = cityId2ProductIdRDD.join(cityId2AreaInfoRDD).map{
       case (cityId, (clickProductId, cityAreaInfo)) =>
@@ -1012,11 +1017,11 @@ object SessionStat {
 
           //转换为Date类型的事件类型才能进行比较
           val actionTime = DateUtils.parseTime(action.action_time) // action_time = "2019-05-30 18:17:11" 是字符串类型
-          if (startTime == null || startTime.after(actionTime)) { // startTime 在 actionTime 的后面   正常区间：[startTime, actionTime, endTime]
+          if (startTime == null || startTime.after(actionTime)) { // startTime 在 actionTime 的后面,正常区间：[startTime, actionTime, endTime]
             startTime = actionTime
           }
 
-          if (endTime == null || endTime.before(actionTime)) { // 正常区间：endTime 在 actionTime 的后面面
+          if (endTime == null || endTime.before(actionTime)) { // 正常区间：endTime 在 actionTime 的后面
             endTime = actionTime
           }
 
@@ -1106,27 +1111,33 @@ object SessionStat {
 
     val userVisitActionDF = spark.sql(sql)
 
+    // DataFrame转换成RDD
     userVisitActionDF.as[UserVisitAction].rdd
   }
 
 }
 
+/**
+  * UDAF用户自定义函数
+  */
 class GroupConcatDistinct extends UserDefinedAggregateFunction{
   //设置UDAF函数的输入类型为String
   override def inputSchema: StructType = StructType(StructField("cityInfoInput", StringType) :: Nil)
 
   //设置 UDAF 函数的缓冲区类型为 String
-  // 缓冲区里数据类型，如果缓冲区内有两个属性可以定义为：
+  // 缓冲区里数据类型，如果缓冲区内有两个属性可以定义为：类似求平均数，需要一个sum和count
   // StructType(StructField("bufferCityInfo", StringType)::StructField("bufferNameInfo", StringType)::Nil)
   override def bufferSchema: StructType = StructType(StructField("cityInfoBuffer", StringType) :: Nil)
 
+  //聚合函数返回值数据结构
   //设置 UDAF 函数的输出类型为 String
   override def dataType: DataType = StringType
 
+  //聚合函数是否是幂等，即相同输入是否能得到相同的输出
   //设置 UDAF 函数的输入数据和输出数据是一致的
   override def deterministic: Boolean = true
 
-  //初始化自定义的UDAF函数
+  //初始化缓冲区
   override def initialize(buffer: MutableAggregationBuffer): Unit = buffer(0) = ""
 
   //设置 UDAF 函数的缓冲区更新：实现一个字符串带去重的拼接
@@ -1136,13 +1147,16 @@ class GroupConcatDistinct extends UserDefinedAggregateFunction{
 
     //去重
     if (!cityInfoBuffer.contains(cityInfoInput)){
+      //如果第一次为空，直接赋值
       if ("".equals(cityInfoBuffer)){
         cityInfoBuffer += cityInfoInput
       } else {
+        //如果不为空，加逗号进行分隔
         cityInfoBuffer += "," + cityInfoInput
       }
     }
 
+    //更新0号buffer上的数据
     buffer.update(0, cityInfoBuffer)
   }
 
@@ -1167,6 +1181,7 @@ class GroupConcatDistinct extends UserDefinedAggregateFunction{
     buffer1.update(0, cityInfoBuffer1)
   }
 
+  //获取最终结果
   override def evaluate(buffer: Row): Any = {
     buffer.getString(0)
   }

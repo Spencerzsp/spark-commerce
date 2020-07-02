@@ -1,11 +1,12 @@
 package com.bigdata.analyze
 
+import java.util
 import java.util.Date
 
+import com.bigdata.commons.bean.{AdBlacklist, AdUserClickCount}
 import com.bigdata.commons.conf.ConfigurationManager
 import com.bigdata.commons.constant.MyConstant
-import com.bigdata.commons.dao.impl.{AdBlacklistDAOImpl, AdUserClickCountDAOImpl}
-import com.bigdata.commons.model.{AdBlacklist, AdUserClickCount}
+import com.bigdata.commons.impl.{AdBlacklistDAOImpl, AdUserClickCountDAOImpl}
 import com.bigdata.commons.utils.DateUtils
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.SparkConf
@@ -15,95 +16,12 @@ import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, Loca
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 object AdClickRealTimeStat {
 
-  def generateBlackListStat(adRealTimeFilterDStream: DStream[String]) = {
-
-    val key2NumDStream = adRealTimeFilterDStream.map {
-      case consumerRecordRDD =>
-        val consumerRecordSplit = consumerRecordRDD.split(" ")
-        val timestamp = consumerRecordSplit(0).toLong
-        val dateKey = DateUtils.formatDateKey(new Date(timestamp))
-        val userid = consumerRecordSplit(3).toLong
-        val adid = consumerRecordSplit(4).toLong
-
-        val key = dateKey + "_" + userid + "_" + adid // 组合 key
-
-        (key, 1L)
-    }
-    val key2CountDStream  = key2NumDStream.reduceByKey(_ + _)
-    key2CountDStream.foreachRDD(rdd => rdd.foreach(println))
-
-    val adUserClickCountDAOImpl = new AdUserClickCountDAOImpl()
-
-    // 根据每一个 RDD 里面的数据，更新用户点击次数表数据
-    key2CountDStream.foreachRDD{
-      rdd => rdd.foreachPartition{
-        items =>
-          val clickCountArray  = ArrayBuffer[AdUserClickCount]()
-
-          for ((key, count) <- items) {
-            val keySplit = key.split("_")
-            val date = keySplit(0)
-            val userid = keySplit(1).toLong
-            val adid = keySplit(2).toLong
-
-            clickCountArray += AdUserClickCount(date, userid, adid, count)
-          }
-
-          var clickCountList = ListBuffer[AdUserClickCount]()
-          for (clickCount <- clickCountArray) {
-            clickCountList.append(clickCount)
-          }
-
-//          AdUserClickCountDAO.updateBatch(clickCountArray.toArray)
-
-
-          import scala.collection.JavaConverters._
-          adUserClickCountDAOImpl.updateBatch(clickCountList.toList.asJava)
-
-      }
-    }
-
-    val key2BlackListDStream = key2CountDStream.filter {
-      case (key, count) =>
-        val keySplit = key.split("_")
-        val date = keySplit(0)
-        val userid = keySplit(1).toLong
-        val adid = keySplit(1).toLong
-
-        val clickCount = adUserClickCountDAOImpl.findClickCountByMultiKey(date, userid, adid)
-        if (clickCount > 100)
-          true
-        else
-          false
-    }
-
-    val userIdDStream = key2BlackListDStream.map {
-      case (key, count) =>
-        key.split("_")(1).toLong
-    }.transform(rdd => rdd.distinct())
-
-    // 将结果批量插入mysql数据库中
-    userIdDStream.foreachRDD(
-      rdd => rdd.foreachPartition{
-        items =>
-          val userIdArray = ArrayBuffer[AdBlacklist]()
-          for (userId <- items) {
-            userIdArray += AdBlacklist(userId)
-          }
-          val adBlacklistDAOImpl = new AdBlacklistDAOImpl()
-          adBlacklistDAOImpl.insertBatch(userIdArray.toList.asJava)
-    })
-
-
-  }
-
   def main(args: Array[String]): Unit = {
 
-    val conf = new SparkConf().setAppName("MockRealTimeData").setMaster("local[*]")
+    val conf = new SparkConf().setAppName("AdClickRealTimeStat").setMaster("local[*]")
     val spark = SparkSession.builder()
       .config(conf)
       .getOrCreate()
@@ -137,29 +55,28 @@ object AdClickRealTimeStat {
     val adRealTimeValueDStream  = adRealTimeLogDStream.map(item => (item.value()))
 
     val adRealTimeFilterDStream = adRealTimeValueDStream.transform {
+      //transform操作的是rdd数据集，map算子操作的是rdd中的具体元素
       consumerRecordRDD =>
 
         // 首先从mysql中查询所有黑名单用户
         val adBlacklistDAOImpl = new AdBlacklistDAOImpl()
-        val adBlacklistArray = adBlacklistDAOImpl.findAll()
+        val adBlacklists = adBlacklistDAOImpl.findAll()
 
-        val adBlacklists = ArrayBuffer[AdBlacklist]()
-        val iterators = adBlacklistArray.iterator()
-        while (iterators.hasNext) {
-          val adBlacklist = iterators.next()
-          //          adBlacklist.userid
-          adBlacklists.append(adBlacklist)
-        }
-        val userIdArray = adBlacklists.map(item => item.userid)
+        import scala.collection.JavaConverters._
+        adBlacklists.asScala.foreach(println)
+
+        val userIdArray = adBlacklists.asScala.map(item => item.getUserid)
 
         consumerRecordRDD.filter {
           case consumerRecord =>
             val consumerRecordSplit = consumerRecord.split(" ")
             val userId = consumerRecordSplit(3)
-
             !userIdArray.contains(userId)
         }
     }
+
+    //====================广告点击黑名单实时统计================================
+    generateBlackListStat(adRealTimeFilterDStream)
 
 //    adRealTimeFilterDStream.foreachRDD(rdd => rdd.foreach(println))
 
@@ -181,11 +98,21 @@ object AdClickRealTimeStat {
     val key2StateDStream  = key2NumDStream.updateStateByKey {
       (values: Seq[Long], state: Option[Long]) =>
         var newValue = 0L
-        if (state.isDefined) {
-          newValue = state.get
-        }
-        for (value <- values) {
-          newValue += value
+//        if (state.isDefined) {
+//          newValue = state.get
+//        }
+//        for (value <- values) {
+//          newValue += value
+//        }
+        state match {
+          case Some(count) =>
+            for (value <- values) {
+              newValue += value + count
+            }
+          case None =>
+            for (value <- values) {
+              newValue += value
+            }
         }
         Some(newValue)
     }
@@ -196,11 +123,97 @@ object AdClickRealTimeStat {
       }
     }
 
-//    generateBlackListStat(adRealTimeFilterDStream)
-
     ssc.start()
     ssc.awaitTermination()
 
+
+  }
+
+  /**
+    * 广告点击黑名单实时统计
+    */
+  def generateBlackListStat(adRealTimeFilterDStream: DStream[String]) = {
+
+    val key2NumDStream = adRealTimeFilterDStream.map {
+      case consumerRecordRDD =>
+        val consumerRecordSplit = consumerRecordRDD.split(" ")
+        val timestamp = consumerRecordSplit(0).toLong
+        val dateKey = DateUtils.formatDateKey(new Date(timestamp))
+        val userid = consumerRecordSplit(3).toLong
+        val adid = consumerRecordSplit(4).toLong
+
+        val key = dateKey + "_" + userid + "_" + adid // 组合 key
+
+        (key, 1L)
+    }
+    val key2CountDStream  = key2NumDStream.reduceByKey(_ + _)
+    key2CountDStream.foreachRDD(rdd => rdd.foreach(println))
+
+    val adUserClickCountDAOImpl = new AdUserClickCountDAOImpl()
+
+    // 根据每一个 RDD 里面的数据，更新用户点击次数表数据
+    key2CountDStream.foreachRDD{
+      rdd => rdd.foreachPartition{
+        items =>
+          val clickCountArray  = new util.ArrayList[AdUserClickCount]()
+          val adUserClickCount = new AdUserClickCount()
+
+          for ((key, count) <- items) {
+            val keySplit = key.split("_")
+            val date = keySplit(0)
+            val userid = keySplit(1).toLong
+            val adid = keySplit(2).toLong
+
+            adUserClickCount.setDate(date)
+            adUserClickCount.setUserid(userid)
+            adUserClickCount.setAdid(adid)
+            adUserClickCount.setClickCount(count)
+
+            clickCountArray.add(adUserClickCount)
+          }
+
+          //更新用户点击次数
+          adUserClickCountDAOImpl.updateBatch(clickCountArray)
+
+      }
+    }
+
+    //动态更新黑名单表数据
+    // 对 DStream 做 filter 操作：就是遍历 DStream 中的每一个 RDD 中的每一条数据
+    // key2BlackListDStream: DStream[RDD, RDD, RDD, ...] -> RDD[(key, 150)]
+    val key2BlackListDStream = key2CountDStream.filter {
+      case (key, count) =>
+        val keySplit = key.split("_")
+        val date = keySplit(0)
+        val userid = keySplit(1).toLong
+        val adid = keySplit(1).toLong
+
+        val clickCount = adUserClickCountDAOImpl.findClickCountByMultiKey(date, userid, adid)
+        if (clickCount > 100)
+          true
+        else
+          false
+    }
+
+    // key2BlackListDStream.map: DStream[RDD[userid]]
+    val userIdDStream = key2BlackListDStream.map {
+      case (key, count) =>
+        key.split("_")(1).toLong
+    }.transform(rdd => rdd.distinct())
+
+    // 将结果批量插入mysql数据库中
+    userIdDStream.foreachRDD(
+      rdd => rdd.foreachPartition{
+        items =>
+          val adBlacklists = new util.ArrayList[AdBlacklist]()
+          val adBlacklist = new AdBlacklist()
+          for (userId <- items) {
+            adBlacklist.setUserid(userId)
+            adBlacklists.add(adBlacklist)
+          }
+          val adBlacklistDAOImpl = new AdBlacklistDAOImpl()
+          adBlacklistDAOImpl.insertBatch(adBlacklists)
+      })
 
   }
 

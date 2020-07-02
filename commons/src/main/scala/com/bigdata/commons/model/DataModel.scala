@@ -13,7 +13,7 @@ object DataModel {
   * @param page_id            某个页面的 ID
   * @param action_time        点击行为的时间点
   * @param search_keyword     用户搜索的关键词
-  * @param click_category_id  某一个商品品类的 ID
+  * @param click_category_id  某一类的个商品品 ID
   * @param click_product_id   某一个商品的 ID
   * @param order_category_ids 一次订单中所有品类的 ID 集合
   * @param order_product_ids  一次订单中所有商品的 ID 集合
@@ -206,21 +206,21 @@ case class AreaTop3Product(taskid: String,
                            productName: String,
                            productStatus: String)
 
-/**
-  * 广告黑名单
-  *
-  * @author
-  *
-  */
-case class AdBlacklist(userid: Long)
-
-/**
-  * 用户广告点击量
-  *
-  * @author
-  *
-  */
-case class AdUserClickCount(date: String,
-                            userid: Long,
-                            adid: Long,
-                            clickCount: Long)
+///**
+//  * 广告黑名单
+//  *
+//  * @author
+//  *
+//  */
+//case class AdBlacklist(userid: Long)
+//
+///**
+//  * 用户广告点击量
+//  *
+//  * @author
+//  *
+//  */
+//case class AdUserClickCount(date: String,
+//                            userid: Long,
+//                            adid: Long,
+//                            clickCount: Long)
