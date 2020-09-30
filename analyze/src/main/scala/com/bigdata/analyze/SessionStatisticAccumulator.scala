@@ -6,7 +6,7 @@ import scala.collection.mutable
 
 class SessionStatisticAccumulator extends AccumulatorV2[String, mutable.HashMap[String, Int]](){
   // 自定义累加器：要求要在类的里面维护一个 mutable.HashMap 结构
-  val countMap = new mutable.HashMap[String, Int]()
+  val countMap = mutable.HashMap[String, Int]()
 
   // 判断累加器是否为空
   override def isZero: Boolean = {

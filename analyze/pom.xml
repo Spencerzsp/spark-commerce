@@ -16,7 +16,7 @@
             <artifactId>commons</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
-        <!-- Spark 的依赖引入 -->
+        <!-- Spark 的依赖引入 ,由于在父项目中使用dependcyManagement进行了声明，所以在子项目中不需要指定版本-->
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.11</artifactId>

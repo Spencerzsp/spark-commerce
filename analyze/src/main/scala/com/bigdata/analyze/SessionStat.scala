@@ -71,15 +71,15 @@ object SessionStat {
     sessionId2FullAggrInfoRDD.foreach(println)
 
     // 创建自定义累加器对象
-//    val sessionStatisticAccumulator = new SessionStatisticAccumulator
+    val sessionStatisticAccumulator = new SessionStatisticAccumulator
 
-    // 在 sparkSession 中注册自定义累加器，这样后面就可以用了
-//    sc.register(sessionStatisticAccumulator)
+    // 在sparkSession中注册自定义累加器，这样后面就可以用了
+    sc.register(sessionStatisticAccumulator)
 
     //sessionId2FilterRDD: RDD[session_id, fullInfo]
-//    val sessionId2FilterRDD = getSessionFilterRDD(taskParam, sessionId2FullAggrInfoRDD, sessionStatisticAccumulator)
+    val sessionId2FilterRDD = getSessionFilterRDD(taskParam, sessionId2FullAggrInfoRDD, sessionStatisticAccumulator)
 
-//    sessionId2FilterRDD.foreach(println)
+    sessionId2FilterRDD.foreach(println)
 
     // ******************** 需求一：Session 占比 ********************
 //    getSessionRatio(spark, taskUUID, sessionStatisticAccumulator.value)
@@ -123,38 +123,38 @@ object SessionStat {
     // ******************** 需求六：各区域 Top3 商品统计 ********************
 
     // cityId2ProductIdRDD: RDD[(cityId, productId)]
-    val cityId2ProductIdRDD  = getCityAndProductInfo(spark, taskParam)
-
-    // cityId2AreaInfoRDD: RDD[(cityId, cityName, area)]
-    val cityId2AreaInfoRDD  = getCityAreaInfo(spark)
-
-    getAreaProductIdBasicInfoTable(spark, cityId2ProductIdRDD, cityId2AreaInfoRDD)
-
-    // 自定义 UDF 函数：实现字符串带去重的拼接
-    spark.udf.register("concat_long_string", (v1: Long, v2: String, split: String) => {
-      v1 + split + v2
-    })
-
-    spark.udf.register("group_concat_distinct", new GroupConcatDistinct)
-
-    getAreaProductClickCountTable(spark)
-
-    // 自定义 UDF 函数：实现从 json 串中取出指定字段的值
-    spark.udf.register("get_json_field", (jsonStr: String, field: String) => {
-      val jSONObject = JSONObject.fromObject(jsonStr)
-      jSONObject.getString(field)
-    })
-
-    //将temp_area_product_count 表 join 商品信息表 product_info
-    getAreaProductClickCountInfo(spark)
-
-    // 获取各区域 Top3 商品（使用到了开窗函数）
-    getAreaTop3Product(spark, taskUUID)
-
-    // 测试
-    spark.sql("select * from temp_area_product_info").show
-    spark.sql("select * from temp_area_product_count").show
-    spark.sql("select * from temp_area_count_product_info").show
+//    val cityId2ProductIdRDD  = getCityAndProductInfo(spark, taskParam)
+//
+//    // cityId2AreaInfoRDD: RDD[(cityId, cityName, area)]
+//    val cityId2AreaInfoRDD  = getCityAreaInfo(spark)
+//
+//    getAreaProductIdBasicInfoTable(spark, cityId2ProductIdRDD, cityId2AreaInfoRDD)
+//
+//    // 自定义 UDF 函数：实现字符串带去重的拼接
+//    spark.udf.register("concat_long_string", (v1: Long, v2: String, split: String) => {
+//      v1 + split + v2
+//    })
+//
+//    spark.udf.register("group_concat_distinct", new GroupConcatDistinct)
+//
+//    getAreaProductClickCountTable(spark)
+//
+//    // 自定义 UDF 函数：实现从 json 串中取出指定字段的值
+//    spark.udf.register("get_json_field", (jsonStr: String, field: String) => {
+//      val jSONObject = JSONObject.fromObject(jsonStr)
+//      jSONObject.getString(field)
+//    })
+//
+//    //将temp_area_product_count 表 join 商品信息表 product_info
+//    getAreaProductClickCountInfo(spark)
+//
+//    // 获取各区域 Top3 商品（使用到了开窗函数）
+//    getAreaTop3Product(spark, taskUUID)
+//
+//    // 测试
+//    spark.sql("select * from temp_area_product_info").show
+//    spark.sql("select * from temp_area_product_count").show
+//    spark.sql("select * from temp_area_count_product_info").show
 
   }
 
@@ -1111,7 +1111,7 @@ object SessionStat {
 
     val userVisitActionDF = spark.sql(sql)
 
-    // DataFrame转换成RDD
+    // DataFrame: DataSet[UserVisitAction]转换成RDD[UserVisitAction]
     userVisitActionDF.as[UserVisitAction].rdd
   }
 

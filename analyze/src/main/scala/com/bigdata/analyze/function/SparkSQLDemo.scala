@@ -32,6 +32,10 @@ object SparkSQLDemo {
     val sql1 = "select addr, user_avg(age) avg_age from user group by addr"
     spark.sql(sql1).show()
 
+    import org.apache.spark.sql.functions.udf
+
+    udf((x: Int) => x + 1)
+
     //使用UDF
     spark.udf.register("get_json_field", (json: String, field: String) => {
       val jSONObject = JSONObject.fromObject(json)

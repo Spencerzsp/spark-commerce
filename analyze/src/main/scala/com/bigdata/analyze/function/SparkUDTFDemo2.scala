@@ -28,10 +28,10 @@ object SparkUDTFDemo2 {
       .getOrCreate()
 
     val userRDD: RDD[User] = spark.sparkContext.makeRDD(Seq(
-      User(1, "盖伦", 20, "德玛西亚|班德尔城|黑色玫瑰"),
-      User(2, "赵信", 25, "艾欧尼亚|诺克萨斯"),
-      User(3, "皇子", 30, "德玛西亚")
-    )
+        User(1, "盖伦", 20, "德玛西亚|班德尔城|黑色玫瑰"),
+        User(2, "赵信", 25, "艾欧尼亚|诺克萨斯"),
+        User(3, "皇子", 30, "德玛西亚")
+      )
     )
 
     val userDF = spark.createDataFrame(userRDD)

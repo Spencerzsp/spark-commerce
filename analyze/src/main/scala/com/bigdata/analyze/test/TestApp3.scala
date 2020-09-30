@@ -4,8 +4,9 @@ import java.util
 
 import com.bigdata.commons.bean.AdBlacklist
 import com.bigdata.commons.impl.AdBlacklistDAOImpl
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partitioner, SparkConf}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 /**
   * @ author spencer
@@ -23,9 +24,24 @@ object TestApp3 {
       .enableHiveSupport()
       .getOrCreate()
 
-    val rdd = spark.sparkContext.makeRDD(List(("a", 1), ("b", 2), ("c", 3)))
+//    val rdd = spark.sparkContext.makeRDD(List(("a", 1), ("b", 2), ("c", 3)))
 
-    rdd.partitionBy(new MyPartitioner(3)).saveAsTextFile("D:\\IdeaProjects\\spark-commerce\\output")
+//    rdd.partitionBy(new MyPartitioner(3)).saveAsTextFile("D:\\IdeaProjects\\spark-commerce\\output")
+
+    //spark.sparkContext.textFile: RDD[String]
+    val lines: RDD[String] = spark.sparkContext.textFile("D:\\IdeaProjects\\spark-commerce\\analyze\\src\\main\\resources\\word.txt")
+
+    //spark.read.textFile: Dataset[String]
+    val data: Dataset[String] = spark.read.textFile("D:\\IdeaProjects\\spark-commerce\\analyze\\src\\main\\resources\\README.md")
+
+//    val data: Dataset[String] = spark.read.textFile("D:\\IdeaProjects\\spark-commerce\\analyze\\src\\main\\resources\\word.txt")
+
+    import spark.implicits._
+    val wordCounts: Dataset[(String, Long)] = data.flatMap(line => line.split(" ")).groupByKey(identity).count()
+
+//    val wordCounts = data.flatMap(line => line.split(" ")).groupByKey(identity).count()
+
+    wordCounts.collect().foreach(println)
 
   }
 }
