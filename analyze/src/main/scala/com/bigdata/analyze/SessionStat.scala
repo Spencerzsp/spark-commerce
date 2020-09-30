@@ -68,12 +68,12 @@ object SessionStat {
     //sessionId2FullAggrInfoRDD: RDD[session_id, fullAggrInfo]
     val sessionId2FullAggrInfoRDD = getSessionFullAggrInfo(spark, sessionId2ActionGroupRDD)
 
-    sessionId2FullAggrInfoRDD.foreach(println)
+//    sessionId2FullAggrInfoRDD.foreach(println)
 
     // 创建自定义累加器对象
     val sessionStatisticAccumulator = new SessionStatisticAccumulator
 
-    // 在sparkSession中注册自定义累加器，这样后面就可以用了
+    // 在sparkSession中注册自定义累加器
     sc.register(sessionStatisticAccumulator)
 
     //sessionId2FilterRDD: RDD[session_id, fullInfo]
@@ -82,14 +82,15 @@ object SessionStat {
     sessionId2FilterRDD.foreach(println)
 
     // ******************** 需求一：Session 占比 ********************
-//    getSessionRatio(spark, taskUUID, sessionStatisticAccumulator.value)
+    // 需要获取累加器中的值，因此sessionId2FilterRDD必须出发计算，将值写入累加器
+    getSessionRatio(spark, taskUUID, sessionStatisticAccumulator.value)
 
-//    println("计算session占比完成~~~")
+    println("计算session占比完成~~~")
 
     // ******************** 需求二：Session 随机抽取 ********************
-//    sessionRandomExtract(spark, taskUUID, sessionId2FilterRDD)
+    sessionRandomExtract(spark, taskUUID, sessionId2FilterRDD)
 
-//    println("计算session随机抽取完成")
+    println("计算session随机抽取完成")
 
     // ******************** 需求三：Top10 热门品类统计 ********************
 
@@ -97,64 +98,61 @@ object SessionStat {
     // seeionId2FilterRDD: RDD[(sessionId, fullAggrInfo)]
 
     // join 默认是内连接，即不符合条件的不显示（即被过滤掉）
-    
-//    val sessionId2ActionFilterRDD  = sessionId2ActionRDD.join(sessionId2FilterRDD).map{
-//      case (sessionId, (userVisitAction, filterInfo)) =>
-//        (sessionId, userVisitAction)
-//    }
-
-//    val top10CategoryArray = top10PopularCategories(spark, taskUUID, sessionId2ActionFilterRDD)
+    val sessionId2ActionFilterRDD  = sessionId2ActionRDD.join(sessionId2FilterRDD).map{
+      case (sessionId, (userVisitAction, _)) =>
+        (sessionId, userVisitAction)
+    }
+    val top10CategoryArray: Array[(SortKey, String)] = top10PopularCategories(spark, taskUUID, sessionId2ActionFilterRDD)
 
     // ******************** 需求四：Top10 热门品类的 Top10 活跃 Session 统计 ********************
 
-//    top10ActiveSession(spark, taskUUID, sessionId2ActionFilterRDD, top10CategoryArray)
+    top10ActiveSession(spark, taskUUID, sessionId2ActionFilterRDD, top10CategoryArray)
 
     // ******************** 需求五：页面单跳转化率统计 ********************
 
-//    sessionId2ActionRDD.persist(StorageLevel.MEMORY_ONLY)
-//
-//    val pageSplitCount = getPageSplitCount(taskParam, sessionId2ActionRDD)
-//    val targetPageSplit = pageSplitCount._1
-//    val startPageCount = pageSplitCount._2
-//    val realPageSplitCountMap = pageSplitCount._3
-//
-//    getPageConvertRate(spark, taskUUID, targetPageSplit, startPageCount, realPageSplitCountMap)
+    sessionId2ActionRDD.persist(StorageLevel.MEMORY_ONLY)
+
+    val pageSplitCount = getPageSplitCount(taskParam, sessionId2ActionRDD)
+    val targetPageSplit = pageSplitCount._1
+    val startPageCount = pageSplitCount._2
+    val realPageSplitCountMap = pageSplitCount._3
+
+    getPageConvertRate(spark, taskUUID, targetPageSplit, startPageCount, realPageSplitCountMap)
 
     // ******************** 需求六：各区域 Top3 商品统计 ********************
 
     // cityId2ProductIdRDD: RDD[(cityId, productId)]
-//    val cityId2ProductIdRDD  = getCityAndProductInfo(spark, taskParam)
-//
-//    // cityId2AreaInfoRDD: RDD[(cityId, cityName, area)]
-//    val cityId2AreaInfoRDD  = getCityAreaInfo(spark)
-//
-//    getAreaProductIdBasicInfoTable(spark, cityId2ProductIdRDD, cityId2AreaInfoRDD)
-//
-//    // 自定义 UDF 函数：实现字符串带去重的拼接
-//    spark.udf.register("concat_long_string", (v1: Long, v2: String, split: String) => {
-//      v1 + split + v2
-//    })
-//
-//    spark.udf.register("group_concat_distinct", new GroupConcatDistinct)
-//
-//    getAreaProductClickCountTable(spark)
-//
-//    // 自定义 UDF 函数：实现从 json 串中取出指定字段的值
-//    spark.udf.register("get_json_field", (jsonStr: String, field: String) => {
-//      val jSONObject = JSONObject.fromObject(jsonStr)
-//      jSONObject.getString(field)
-//    })
-//
-//    //将temp_area_product_count 表 join 商品信息表 product_info
-//    getAreaProductClickCountInfo(spark)
-//
-//    // 获取各区域 Top3 商品（使用到了开窗函数）
-//    getAreaTop3Product(spark, taskUUID)
-//
-//    // 测试
-//    spark.sql("select * from temp_area_product_info").show
-//    spark.sql("select * from temp_area_product_count").show
-//    spark.sql("select * from temp_area_count_product_info").show
+    val cityId2ProductIdRDD  = getCityAndProductInfo(spark, taskParam)
+
+    // cityId2AreaInfoRDD: RDD[(cityId, cityName, area)]
+    val cityId2AreaInfoRDD  = getCityAreaInfo(spark)
+
+    getAreaProductIdBasicInfoTable(spark, cityId2ProductIdRDD, cityId2AreaInfoRDD)
+
+    // 自定义 UDF 函数：实现字符串带去重的拼接
+    spark.udf.register("concat_long_string", (v1: Long, v2: String, split: String) => {
+      v1 + split + v2
+    })
+    spark.udf.register("group_concat_distinct", new GroupConcatDistinct)
+
+    getAreaProductClickCountTable(spark)
+
+    // 自定义 UDF 函数：实现从 json 串中取出指定字段的值
+    spark.udf.register("get_json_field", (jsonStr: String, field: String) => {
+      val jSONObject = JSONObject.fromObject(jsonStr)
+      jSONObject.getString(field)
+    })
+
+    //将temp_area_product_count 表 join 商品信息表 product_info
+    getAreaProductClickCountInfo(spark)
+
+    // 获取各区域 Top3 商品（使用到了开窗函数）
+    getAreaTop3Product(spark, taskUUID)
+
+    // 测试
+    spark.sql("select * from temp_area_product_info").show
+    spark.sql("select * from temp_area_product_count").show
+    spark.sql("select * from temp_area_count_product_info").show
 
   }
 
@@ -207,6 +205,13 @@ object SessionStat {
       " group_concat_distinct(concat_long_string(city_id, city_name, ':')) city_infos" +
       " from temp_area_product_info group by area, click_product_id"
 
+//    val sql2 =
+//      """
+//        |select area, click_product_id, count(*) click_count,
+//        |group_concat_distinct(concat_long_string(city_id, city_name, ':')) city_infos
+//        |from temp_area_product_info group by area, click_product_id
+//      """.stripMargin
+
     sparkSession.sql(sql).createOrReplaceTempView("temp_area_product_count")
   }
 
@@ -243,7 +248,7 @@ object SessionStat {
     val sessionId2GroupActionRDD = sessionId2ActionRDD.groupByKey()
 
     val realPageSplitNumRDD = sessionId2GroupActionRDD.flatMap {
-      case (sessionId, iterableActionRDD) =>
+      case (_, iterableActionRDD) =>
 
         //将UserVisitActionRDD按照时间顺序进行排序
         val sortList = iterableActionRDD.toList.sortWith((item1, item2) => {
@@ -281,7 +286,7 @@ object SessionStat {
     val startPage = targetPageFlowArray(0).toLong
 
     val startPageCount = sessionId2ActionRDD.filter {
-      case (sessionId, userVisitAction) =>
+      case (_, userVisitAction) =>
         userVisitAction.page_id == startPage
     }.count()
 
@@ -322,13 +327,13 @@ object SessionStat {
     // cidArray: Array[Long] 包含了 Top10 热门品类的 id
 
     val cidArray = top10CategoryArray.map {
-      case (sortKey, fullCountInfo) =>
+      case (_, fullCountInfo) =>
         val cid = StringUtils.getFieldFromConcatString(fullCountInfo, "\\|", MyConstant.FIELD_CATEGORY_ID)
         cid
     }
 
     val sessionId2ActionRDD = sessionId2ActionFilterRDD.filter {
-      case (sid, userVisitAction) =>
+      case (_, userVisitAction) =>
         val cid = userVisitAction.click_category_id
         cidArray.contains(cid)
     }
@@ -423,8 +428,8 @@ object SessionStat {
 
     import spark.implicits._
     spark.sql(sql).as[CityClickProduct].rdd.map{
-      case cityIdAndProductId =>
-        (cityIdAndProductId.city_id, cityIdAndProductId.click_product_id)
+      case cityIdAndProduct =>
+        (cityIdAndProduct.city_id, cityIdAndProduct.click_product_id)
     }
 
   }
@@ -494,7 +499,7 @@ object SessionStat {
   def top10PopularCategories(spark: SparkSession, taskUUID: String, sessionId2ActionFilterRDD: RDD[(String, UserVisitAction)]) ={
     // 第一步：获取所有发生过点击、下单、付款的 categoryId，注意：其中被点击的 categoryId 只有一个，被下单和被付款的 categoryId 有多个，categoryId 之间使用逗号隔开的
     var cid2CidRDD = sessionId2ActionFilterRDD.flatMap {
-      case (sessionId, userVisitAction) =>
+      case (_, userVisitAction) =>
         val categoryIdBuffer = new ArrayBuffer[(Long, Long)]()
 
         // 提取出数据填充 ArrayBuffer
@@ -530,7 +535,7 @@ object SessionStat {
 
     // 第六步：封装 SortKey
     val sortKey2FullCountRDD = cid2FullCountRDD.map {
-      case (cid, fullCountInfo) =>
+      case (_, fullCountInfo) =>
         val clickCount = StringUtils.getFieldFromConcatString(fullCountInfo, "\\|", MyConstant.FIELD_CLICK_COUNT).toLong
         val orderCount = StringUtils.getFieldFromConcatString(fullCountInfo, "\\|", MyConstant.FIELD_ORDER_COUNT).toLong
         val payCount = StringUtils.getFieldFromConcatString(fullCountInfo, "\\|", MyConstant.FIELD_PAY_COUNT).toLong
@@ -584,7 +589,7 @@ object SessionStat {
                    cid2ClickCountRDD: RDD[(Long, Long)],
                    cid2OrderCountRDD: RDD[(Long, Long)],
                    cid2PayCountRDD: RDD[(Long, Long)]) = {
-    // 左外连接：不符合添加显示为空（null）
+    // 左外连接：不符合条件显示为空（null）
 
     // 4.1 所有品类id 和 被点击的品类 做左外连接
     val cid2ClickInfoRDD = cid2CidRDD.leftOuterJoin(cid2ClickCountRDD).map {
@@ -622,15 +627,15 @@ object SessionStat {
   def getClickCount(seeionId2ActionFilterRDD: RDD[(String, UserVisitAction)]) = {
     // 方式一：把发生过点击的 action 过滤出来
     val clickActionFilterRDD = seeionId2ActionFilterRDD.filter {
-      case (sessionId, userVisitAction) =>
-        userVisitAction.click_category_id != 1L
+      case (_, userVisitAction) =>
+        userVisitAction.click_category_id != -1L
     }
     // 方式二：把发生点击的 action 过滤出来，二者等价
     // val clickActionFilterRDD2 = seeionId2ActionFilterRDD.filter(item => item._2.click_category_id != -1L)
 
     // 获取每种类别的点击次数
     val clickNumRDD = clickActionFilterRDD.map {
-      case (sessionId, userVisitAction) =>
+      case (_, userVisitAction) =>
         (userVisitAction.click_category_id, 1L)
     }
     // 计算各个品类的点击次数
@@ -645,12 +650,12 @@ object SessionStat {
   def getOrderCount(seeionId2ActionFilterRDD: RDD[(String, UserVisitAction)]) = {
     // 把发生过下单的 action 过滤出来
     val orderActionFilterRDD = seeionId2ActionFilterRDD.filter {
-      case (sessionId, userVisitAction) =>
+      case (_, userVisitAction) =>
         userVisitAction.order_category_ids != null
     }
     // 获取每种类别的下单次数
     val orderNumRDD = orderActionFilterRDD.flatMap {
-      case (sessionId, userVisitAction) =>
+      case (_, userVisitAction) =>
         userVisitAction.order_category_ids.split(",").map(item => (item.toLong, 1L))
     }
     // 计算各个品类的下单次数
@@ -665,12 +670,12 @@ object SessionStat {
   def getPayCount(seeionId2ActionFilterRDD: RDD[(String, UserVisitAction)]) = {
     // 把发生过付款的 action 过滤出来
     val payActionFilterRDD = seeionId2ActionFilterRDD.filter {
-      case (sessionId, userVisitAction) =>
+      case (_, userVisitAction) =>
         userVisitAction.pay_category_ids != null
     }
     // 获取每种类别的支付次数
     val payNumRDD = payActionFilterRDD.flatMap {
-      case (sessionId, userVisitAction) =>
+      case (_, userVisitAction) =>
         userVisitAction.pay_category_ids.split(",").map(item => (item.toLong, 1L))
     }
     // 计算各个品类的支付次数
@@ -719,7 +724,7 @@ object SessionStat {
   def sessionRandomExtract(spark: SparkSession, taskUUID: String, sessionId2FilterRDD: RDD[(String, String)]) = {
 
     val dateHour2FullAggrInfoRDD = sessionId2FilterRDD.map {
-      case (sessionId, fullAggrInfo) =>
+      case (_, fullAggrInfo) =>
         val startTime = StringUtils.getFieldFromConcatString(fullAggrInfo, "\\|", MyConstant.FIELD_START_TIME)
 
         println(startTime)
@@ -769,7 +774,7 @@ object SessionStat {
         case None =>
           dateHourExtractIndexListMap(date) = new mutable.HashMap[String, ListBuffer[Int]]()
           generateRandomIndexList(extractPerDay, dateCount, hourCountMap, dateHourExtractIndexListMap(date))
-        case Some(map) =>
+        case Some(_) =>
           generateRandomIndexList(extractPerDay, dateCount, hourCountMap, dateHourExtractIndexListMap(date))
       }
     }
@@ -787,7 +792,7 @@ object SessionStat {
         val date = dateHour.split("_")(0)
         val hour = dateHour.split("_")(1)
 
-        val extractIndexList  = dateHourExtractIndexListMapBroadcastVar.value.get(date).get(hour)
+        val extractIndexList = dateHourExtractIndexListMapBroadcastVar.value.get(date).get(hour)
 
         // 创建一个容器存储抽取的 session
         val extractSessionArrayBuffer = new ArrayBuffer[SessionRandomExtract]()
@@ -959,7 +964,7 @@ object SessionStat {
 
     // 进行过滤操作（过滤自带遍历功能）
     sessionId2FullAggrInfoRDD.filter {
-      case (sessionId, fullAggrInfo) =>
+      case (_, fullAggrInfo) =>
         var success = true
 
         // 如果 age 不在过滤条件范围之内，则当前 sessionId 对应的 fullAggrInfo 数据被过滤掉
@@ -977,7 +982,7 @@ object SessionStat {
           success = false
         }
 
-        // 自定义累加器，统计不同范围的 访问时长 和 访问步长 的个数 以及 总的 session 个数
+        // 自定义累加器，统计不同范围的访问时长 和 访问步长的个数 以及总的 session 个数
         if (success) {
           sessionStatisticAccumulator.add(MyConstant.SESSION_COUNT) // 总的 session 个数
 
@@ -985,7 +990,7 @@ object SessionStat {
           val visitLength = StringUtils.getFieldFromConcatString(fullAggrInfo, "\\|", MyConstant.FIELD_VISIT_LENGTH).toLong
           val stepLength = StringUtils.getFieldFromConcatString(fullAggrInfo, "\\|", MyConstant.FIELD_STEP_LENGTH).toLong
 
-          // 统计不同范围的 访问时长 和 访问步长 的个数
+          // 统计不同范围的访问时长 和 访问步长的个数
           calculateVisitLength(visitLength, sessionStatisticAccumulator)
           calculateStepLength(stepLength, sessionStatisticAccumulator)
         }
@@ -1071,7 +1076,7 @@ object SessionStat {
     //userId2InfoRDD: RDD[userId, RDD[UserInfo]]
     val sessionId2FullAggrInfoRDD = userId2PartAggrInfoRDD.join(userId2InfoRDD).map {
       //按照相同key进行join：(key,(value1, value2))
-      case (userId, (partAggrInfo, userInfo)) =>
+      case (_, (partAggrInfo, userInfo)) =>
         val age = userInfo.age
         val professional = userInfo.professional
         val sex = userInfo.sex
@@ -1097,20 +1102,14 @@ object SessionStat {
   def getActionRDD(spark: SparkSession, taskParam: JSONObject) = {
 
     val startDate = ParamUtils.getParam(taskParam, MyConstant.PARAM_START_DATE)
-
     val endDate = ParamUtils.getParam(taskParam, MyConstant.PARAM_END_DATE)
 
-//    println(startDate + "----------" + endDate)
-
     import spark.implicits._
-
     val sql =
       s"""
         |select * from user_visit_action where date >= "$startDate" and date <= "$endDate"
       """.stripMargin
-
     val userVisitActionDF = spark.sql(sql)
-
     // DataFrame: DataSet[UserVisitAction]转换成RDD[UserVisitAction]
     userVisitActionDF.as[UserVisitAction].rdd
   }
@@ -1124,7 +1123,7 @@ class GroupConcatDistinct extends UserDefinedAggregateFunction{
   //设置UDAF函数的输入类型为String
   override def inputSchema: StructType = StructType(StructField("cityInfoInput", StringType) :: Nil)
 
-  //设置 UDAF 函数的缓冲区类型为 String
+  // 设置 UDAF 函数的缓冲区类型为 String
   // 缓冲区里数据类型，如果缓冲区内有两个属性可以定义为：类似求平均数，需要一个sum和count
   // StructType(StructField("bufferCityInfo", StringType)::StructField("bufferNameInfo", StringType)::Nil)
   override def bufferSchema: StructType = StructType(StructField("cityInfoBuffer", StringType) :: Nil)
